@@ -1,10 +1,11 @@
 import axios from 'axios';
 import * as fastcsv from 'fast-csv';
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import cheerio from 'cheerio';
 
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY; // Replace with your YouTube API key
 
-export async function POST(request: Request) {
+export async function POST(request:any) {
   const body = await request.json();
 
   const { videoUrl, numComments } = body;
@@ -16,10 +17,20 @@ export async function POST(request: Request) {
     );
 
     const comments = response.data.items.map(
-      (item: any) => item.snippet.topLevelComment.snippet.textDisplay
+      (item:any) => item.snippet.topLevelComment.snippet.textDisplay
     );
 
-    const csvData = comments.map((comment: any, index: any) => ({
+    // Filter out the first comment
+    const filteredComments = comments.slice(1);
+
+    // Sanitize HTML tags from comments
+    const sanitizedComments = filteredComments.map((comment:any) => {
+      // Use cheerio to remove HTML tags
+      const $ = cheerio.load(comment);
+      return $.text();
+    });
+
+    const csvData = sanitizedComments.map((comment:any, index:number) => ({
       Index: index + 1,
       Comment: comment,
     }));
@@ -46,7 +57,7 @@ export async function POST(request: Request) {
     return responseStream;
   } catch (error) {
     console.error('Error fetching comments:', error);
-    
+
     // Return an error response
     return NextResponse.json({ error: 'Error fetching comments' });
   }
